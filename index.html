@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bantay Proyekto — Ghost Project Detector (Demo)</title>
+<meta name="description" content="Demonstration prototype of a proposed satellite-assisted ghost project detector for flood-control projects. All data is fictional.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script>
+  // Set the theme before first paint: saved choice, else the system setting.
+  var t; try { t = localStorage.getItem('bp-theme'); } catch (e) {}
+  document.documentElement.dataset.theme = t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=block">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- M3 navigation rail (≥600px) / navigation bar (<600px) -->
+<nav class="rail" aria-label="Main">
+  <a class="rail-brand" href="#overview" aria-label="Bantay Proyekto home">
+    <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#e8590c"/><circle cx="16" cy="16" r="9" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+  </a>
+  <a href="#overview" data-view="overview"><span class="ind"><span class="msi" aria-hidden="true">space_dashboard</span></span><span class="lbl">Overview</span></a>
+  <a href="#map" data-view="map"><span class="ind"><span class="msi" aria-hidden="true">map</span></span><span class="lbl">Map</span></a>
+  <a href="#risk" data-view="risk"><span class="ind"><span class="msi" aria-hidden="true">table_chart</span></span><span class="lbl">Risk</span></a>
+  <a href="#project" data-view="project"><span class="ind"><span class="msi" aria-hidden="true">description</span></span><span class="lbl">Details</span></a>
+  <a href="#queue" data-view="queue"><span class="ind"><span class="msi" aria-hidden="true">fact_check</span></span><span class="lbl">Queue</span></a>
+  <a href="#about" data-view="about"><span class="ind"><span class="msi" aria-hidden="true">info</span></span><span class="lbl">About</span></a>
+</nav>
+
+<div class="shell">
+  <div class="app-top">
+    <div class="demo-banner" role="note"><span class="msi" aria-hidden="true">science</span><span><strong>DEMO DATA</strong> — Fictional projects and simulated assessments. Not official government findings.</span></div>
+    <header class="appbar">
+      <a class="brand" href="#overview" aria-label="Bantay Proyekto home">
+        <svg class="brand-mark" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#e8590c"/><circle cx="16" cy="16" r="9" fill="none" stroke="#fff" stroke-width="2.5"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+        <span class="brand-text"><b>Bantay Proyekto</b><small>If we paid for it, space can see it.</small></span>
+      </a>
+      <div id="filter-chip" class="filter-chip" hidden></div>
+      <span class="proto-tag" title="Demonstration prototype — no live data connections"><span class="msi" aria-hidden="true">experiment</span>Prototype · simulated</span>
+      <button type="button" class="icon-btn" id="theme-toggle" aria-label="Dark mode" aria-pressed="false" title="Switch to dark mode"><span class="msi" aria-hidden="true">dark_mode</span></button>
+    </header>
+  </div>
+
+  <main id="main">
+    <!-- A. Overview -->
+    <section id="view-overview" class="view" hidden>
+      <div class="view-head">
+        <div>
+          <h1>Overview</h1>
+          <p class="sub">Screening status of fictional flood-control projects (2022–2025) · Bulacan pilot and nearby Central Luzon</p>
+        </div>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid-ov">
+        <div class="card"><h2>Ghost Score distribution</h2><div id="chart-dist"></div></div>
+        <div class="card"><h2>Status breakdown</h2><div id="chart-status"></div></div>
+        <div class="card span2"><div class="card-head"><h2>Highest-risk projects</h2><a href="#risk" class="link">View all</a></div><div id="top-risk"></div></div>
+        <div class="card"><div class="card-head"><h2>Map preview</h2><a href="#map" class="link">Open map</a></div><div id="mini-map" class="map mini"></div></div>
+        <div class="card"><h2>Regional summary</h2><div id="regional"></div></div>
+        <div class="card span2"><h2>Recent activity</h2><ul id="activity" class="feed"></ul></div>
+      </div>
+    </section>
+
+    <!-- B. Project Map -->
+    <section id="view-map" class="view" hidden>
+      <div class="view-head">
+        <div>
+          <h1>Project Map</h1>
+          <p class="sub">Markers show each demo project's reported location, coloured by Ghost Score risk band.</p>
+        </div>
+      </div>
+      <div class="map-layout">
+        <aside class="card filters-panel">
+          <div class="filters stacked" data-filters></div>
+          <h3 class="results-head">Results <span id="map-count" class="muted"></span></h3>
+          <ul id="map-list" class="result-list"></ul>
+        </aside>
+        <div class="card map-card">
+          <div id="main-map" class="map"></div>
+          <div class="legend" id="map-legend"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- C. Risk Assessment -->
+    <section id="view-risk" class="view" hidden>
+      <div class="view-head">
+        <div>
+          <h1>Risk Assessment</h1>
+          <p class="sub">All screened demo projects. Ghost Score is a prioritisation indicator, not proof of fraud.</p>
+        </div>
+        <button class="fab" data-action="export"><span class="msi" aria-hidden="true">download</span>Export CSV</button>
+      </div>
+      <div class="card">
+        <div class="filters inline" data-filters></div>
+        <div class="table-wrap"><table class="data" id="risk-table"></table></div>
+        <div class="pager" id="pager"></div>
+      </div>
+    </section>
+
+    <!-- D. Project Details -->
+    <section id="view-project" class="view" hidden>
+      <div id="detail"></div>
+    </section>
+
+    <!-- E. Verification Queue -->
+    <section id="view-queue" class="view" hidden>
+      <div class="view-head">
+        <div>
+          <h1>Verification Queue</h1>
+          <p class="sub">Projects ranked for inspection by Ghost Score. All actions here are <b>simulated</b> and stored only in this browser.</p>
+        </div>
+        <label class="switch"><input type="checkbox" id="show-verified" role="switch"><span class="track" aria-hidden="true"></span>Show verified projects</label>
+      </div>
+      <div id="queue" class="queue"></div>
+    </section>
+
+    <!-- F. About & Methodology -->
+    <section id="view-about" class="view" hidden>
+      <div class="view-head">
+        <div>
+          <h1>About &amp; Methodology</h1>
+          <p class="sub">Bantay Proyekto is a <b>proposal</b>. This prototype demonstrates the intended workflow with fictional data.</p>
+        </div>
+      </div>
+
+      <div class="principle">
+        <strong>The system flags; people verify.</strong>
+        <span>A Ghost Score is not a finding of fraud.</span>
+      </div>
+
+      <div class="about-grid">
+        <div class="card span2">
+          <h2>How it would work</h2>
+          <ol class="steps">
+            <li><b>1 · Match</b><span>Match public project records (DPWH, PhilGEPS, Sumbong sa Pangulo) to geographic coordinates.</span></li>
+            <li><b>2 · Look</b><span>Compare satellite imagery from before construction with imagery after the reported completion date.</span></li>
+            <li><b>3 · Score</b><span>Generate an AI-assisted Ghost Score (0–100) from visible change and data quality. "Completed" with no visible change scores high.</span></li>
+            <li><b>4 · Verify</b><span>Human inspectors investigate the top-ranked sites and document their findings. Only verified results are reported as confirmed.</span></li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <h2>Proposed data sources</h2>
+          <p class="muted small">Intended integrations. <b>None are connected in this prototype.</b></p>
+          <ul class="sources">
+            <li><span>DPWH project records</span><em class="chip-off">Not connected</em></li>
+            <li><span>PhilGEPS procurement data</span><em class="chip-off">Not connected</em></li>
+            <li><span>Sumbong sa Pangulo portal</span><em class="chip-off">Not connected</em></li>
+            <li><span>Sentinel-2 optical imagery (free, ~10 m, ~5-day revisit)</span><em class="chip-off">Not connected</em></li>
+            <li><span>Sentinel-1 radar imagery (sees through cloud)</span><em class="chip-off">Not connected</em></li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2>Limitations</h2>
+          <ul class="limits">
+            <li><b>Cloud cover and missing observations.</b> Rainy-season cloud can hide sites; combine many passes and add Sentinel-1 radar.</li>
+            <li><b>Small structures.</b> Walls narrower than ~10 m are hard to see in Sentinel-2; flagged sites would get sharper 5 m (PhilSA MULA) or commercial images.</li>
+            <li><b>Incorrect or missing coordinates.</b> A wrong pin can look like "nothing built"; a missing or wrong location is treated as a warning sign, not a conclusion.</li>
+            <li><b>Ambiguous change.</b> Construction can be hard to separate from nearby land clearing, farming, or flooding.</li>
+            <li><b>False positives and false negatives.</b> The model will be wrong sometimes, in both directions.</li>
+            <li><b>Human review required.</b> Every flag needs physical inspection before any conclusion is drawn.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2>Who it is for</h2>
+          <ul class="limits">
+            <li><b>Auditors</b> (COA, Ombudsman, DPWH) — a ranked short list of sites to visit first.</li>
+            <li><b>Engineers and honest contractors</b> — visible proof that work was done.</li>
+            <li><b>Citizens and journalists</b> — a public map of where the money went.</li>
+          </ul>
+          <h2 class="mt">Proposed rollout</h2>
+          <p class="rollout"><span>Bulacan pilot</span>→<span>Central Luzon</span>→<span>Nationwide</span></p>
+          <p class="muted small">Scope: flood-control projects funded 2022–2025.</p>
+        </div>
+
+        <div class="card">
+          <h2>Context cited in the proposal</h2>
+          <p class="muted small">Public figures quoted in the proposal deck and briefing. They were <b>not</b> produced by this prototype.</p>
+          <ul class="limits">
+            <li>₱545.6B flood-control budget, Jul 2022–May 2025, 5,500+ projects — SONA 2025.</li>
+            <li>416 ghost projects validated by the ICI out of ~8,000 inspected — Inquirer, Jan 30, 2026.</li>
+            <li>₱42.3B–₱118.5B estimated economic loss, 2023–2025 — Dept. of Finance, Sept 2025.</li>
+            <li>Bulacan received nearly 45% of Central Luzon flood funds — press summaries.</li>
+          </ul>
+        </div>
+
+        <div class="card span2">
+          <h2>Prototype settings</h2>
+          <p class="muted small">Risk thresholds are prototype assumptions, not validated scientific classifications.</p>
+          <form id="threshold-form" class="threshold-form">
+            <label class="field"><span>High risk from</span><input type="number" name="high" min="2" max="100" required></label>
+            <label class="field"><span>Medium risk from</span><input type="number" name="med" min="1" max="99" required></label>
+            <button class="btn primary">Apply thresholds</button>
+            <button type="button" class="btn text danger" data-action="reset-demo"><span class="msi" aria-hidden="true">restart_alt</span>Reset demo data</button>
+          </form>
+          <p class="muted small" id="threshold-note"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="verify-dialog" aria-labelledby="vd-title">
+  <form method="dialog" id="verify-form">
+    <span class="msi dialog-icon" aria-hidden="true">fact_check</span>
+    <h2 id="vd-title">Update status</h2>
+    <p id="vd-project" class="muted"></p>
+    <p class="warn-note">Simulated verification for demonstration only. This is not an official inspection or government finding.</p>
+    <label class="field"><span>Date</span><input type="date" name="date" required></label>
+    <label class="field"><span>Inspector (demo)</span><input name="by" maxlength="60"></label>
+    <label class="field"><span>Notes</span><textarea name="note" rows="4" maxlength="1000" placeholder="What was checked, what was observed, what should happen next"></textarea></label>
+    <label class="check" id="vd-confirm-wrap"><input type="checkbox" name="confirm"> I confirm this simulated final decision.</label>
+    <div class="dialog-actions">
+      <button value="cancel" formnovalidate class="btn text">Cancel</button>
+      <button value="save" class="btn text">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="app.js"></script>
+</body>
+</html>
